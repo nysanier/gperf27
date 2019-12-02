@@ -60,10 +60,10 @@ class CentralFreeList {
 
   // Insert the specified range into the central freelist.  N is the number of
   // elements in the range.  RemoveRange() is the opposite operation.
-  void InsertRange(void *start, void *end, int N);
+  void InsertRange(void *start, void *end, int N);  //  从PageHeap申请Pages后切成Object,批量放入
 
   // Returns the actual number of fetched elements and sets *start and *end.
-  int RemoveRange(void **start, void **end, int N);
+  int RemoveRange(void **start, void **end, int N);  // 批发给ThreadCache
 
   // Returns the number of free objects in cache.
   int length() {
@@ -94,7 +94,7 @@ class CentralFreeList {
   // TransferCache is used to cache transfers of
   // sizemap.num_objects_to_move(size_class) back and forth between
   // thread caches and the central cache for a given size class.
-  struct TCEntry {
+  struct TCEntry {  // 类似与Span是一组连续Pages的集合一样,这个是连续的一组同类型Objects集合
     void *head;  // Head of chain of objects.
     void *tail;  // Tail of chain of objects.
   };
@@ -166,7 +166,7 @@ class CentralFreeList {
   // We keep linked lists of empty and non-empty spans.
   size_t   size_class_;     // My size class
   Span     empty_;          // Dummy header for list of empty spans
-  Span     nonempty_;       // Dummy header for list of non-empty spans
+  Span     nonempty_;       // Dummy header for list of non-empty spans  // 记录了使用的Spans
   size_t   num_spans_;      // Number of spans in empty_ plus nonempty_
   size_t   counter_;        // Number of free objects in cache entry
 

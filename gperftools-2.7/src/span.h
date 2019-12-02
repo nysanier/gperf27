@@ -67,12 +67,12 @@ struct SpanBestFitLess {
 
 // Information kept for a span (a contiguous run of pages).
 struct Span {
-  PageID        start;          // Starting page number
+  PageID        start;          // Starting page number  // 和length一起计算占用的pages,这些pages是连续的
   Length        length;         // Number of pages in span
   Span*         next;           // Used when in link list
   Span*         prev;           // Used when in link list
   union {
-    void* objects;              // Linked list of free objects
+    void* objects;              // Linked list of free objects  // 关联的所有objects?
 
     // Span may contain iterator pointing back at SpanSet entry of
     // this span into set of large spans. It is used to quickly delete
@@ -80,8 +80,8 @@ struct Span {
     // iterator which lifetime is controlled explicitly.
     char span_iter_space[sizeof(SpanSet::iterator)];
   };
-  unsigned int  refcount : 16;  // Number of non-free objects
-  unsigned int  sizeclass : 8;  // Size-class for small objects (or 0)
+  unsigned int  refcount : 16;  // Number of non-free objects  // 正在使用的objects数量
+  unsigned int  sizeclass : 8;  // Size-class for small objects (or 0)  // 一个Span只能对应一种class,0的话表示大内存,也就是一个Span只有一个对象
   unsigned int  location : 2;   // Is the span on a freelist, and if so, which?
   unsigned int  sample : 1;     // Sampled object?
   bool          has_span_iter : 1; // Iff span_iter_space has valid

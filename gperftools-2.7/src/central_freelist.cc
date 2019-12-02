@@ -242,12 +242,12 @@ void CentralFreeList::InsertRange(void *start, void *end, int N) {
   }
   ReleaseListToSpans(start);
 }
-
+// start,end是连续的一组objects,因此Span是不需要实现进行objects切分的
 int CentralFreeList::RemoveRange(void **start, void **end, int N) {
   ASSERT(N > 0);
   lock_.Lock();
   if (N == Static::sizemap()->num_objects_to_move(size_class_) &&
-      used_slots_ > 0) {
+      used_slots_ > 0) {  // 当前够分配objects
     int slot = --used_slots_;
     ASSERT(slot >= 0);
     TCEntry *entry = &tc_slots_[slot];

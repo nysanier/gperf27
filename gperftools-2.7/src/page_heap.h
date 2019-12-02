@@ -209,8 +209,8 @@ class PERFTOOLS_DLL_DECL PageHeap {
   Length ReleaseAtLeastNPages(Length num_pages);
 
   // Reads and writes to pagemap_cache_ do not require locking.
-  bool TryGetSizeClass(PageID p, uint32* out) const {
-    return pagemap_cache_.TryGet(p, out);
+  bool TryGetSizeClass(PageID p, uint32* out) const {  // TODO: 这个不用锁吗?
+    return pagemap_cache_.TryGet(p, out);  // 计算p目前所在的class
   }
   void SetCachedSizeClass(PageID p, uint32 cl) {
     ASSERT(cl != 0);
@@ -263,8 +263,8 @@ class PERFTOOLS_DLL_DECL PageHeap {
   // lists: one for normal spans, and one for spans whose memory
   // has been returned to the system.
   struct SpanList {
-    Span        normal;
-    Span        returned;
+    Span        normal;  // 空闲Span
+    Span        returned;  // 已经释放给OS的Span,这个释放并没有释放虚拟地址
   };
 
   // Sets of spans with length > kMaxPages.
@@ -277,7 +277,7 @@ class PERFTOOLS_DLL_DECL PageHeap {
   // Array mapping from span length to a doubly linked list of free spans
   //
   // NOTE: index 'i' stores spans of length 'i + 1'.
-  SpanList free_[kMaxPages];
+  SpanList free_[kMaxPages];  // 256KB-1MB
 
   // Statistics on system, free, and unmapped bytes
   Stats stats_;

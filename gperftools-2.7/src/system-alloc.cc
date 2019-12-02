@@ -141,7 +141,7 @@ DEFINE_bool(malloc_disable_memory_release,
             EnvToBool("TCMALLOC_DISABLE_MEMORY_RELEASE", false),
             "Whether MADV_FREE/MADV_DONTNEED should be used"
             " to return unused memory to the system.");
-
+// sbrk而非brk来申请内存
 // static allocators
 class SbrkSysAllocator : public SysAllocator {
 public:
@@ -241,7 +241,7 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
   //    http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/lib/libc/port/sys/sbrk.c?a=true
   //    http://sourceware.org/cgi-bin/cvsweb.cgi/~checkout~/libc/misc/sbrk.c?rev=1.1.2.1&content-type=text/plain&cvsroot=glibc
   // Without this check, sbrk may succeed when it ought to fail.)
-  if (reinterpret_cast<intptr_t>(Sbrk(0)) + size < size) {
+  if (reinterpret_cast<intptr_t>(Sbrk(0)) + size < size) {  // 判断是否超出了brk的范围?glibc没有在sbrk内部做检查
     return NULL;
   }
 

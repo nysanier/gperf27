@@ -77,10 +77,10 @@ static const size_t kPageShift  = 15;
 #elif defined(TCMALLOC_64K_PAGES)
 static const size_t kPageShift  = 16;
 #else
-static const size_t kPageShift  = 13;
+static const size_t kPageShift  = 13;  // 8KB,可以配置到32KB/64KB
 #endif
 
-static const size_t kClassSizesMax = 96;
+static const size_t kClassSizesMax = 96;  // class数量, 2.0版本中是86个
 
 static const size_t kMaxThreadCacheSize = 4 << 20;
 
@@ -183,8 +183,8 @@ class SizeMap {
   //   ...
   //   32768      (32768 + 127 + (120<<7)) / 128  376
   static const int kMaxSmallSize = 1024;
-  static const size_t kClassArraySize =
-      ((kMaxSize + 127 + (120 << 7)) >> 7) + 1;
+  static const size_t kClassArraySize =  // 2169
+      ((kMaxSize + 127 + (120 << 7)) >> 7) + 1;  // index -> class
   unsigned char class_array_[kClassArraySize];
 
   static inline size_t SmallSizeClass(size_t s) {
@@ -211,7 +211,7 @@ class SizeMap {
   }
 
   // Compute index of the class_array[] entry for a given size
-  static inline size_t ClassIndex(size_t s) {
+  static inline size_t ClassIndex(size_t s) {  // size(1-256KB) -> index(1-2168), index -> class(0-95)
     // Use unsigned arithmetic to avoid unnecessary sign extensions.
     ASSERT(0 <= s);
     ASSERT(s <= kMaxSize);
@@ -227,7 +227,7 @@ class SizeMap {
   // amortize the lock overhead for accessing the central list.  Making
   // it too big may temporarily cause unnecessary memory wastage in the
   // per-thread free list until the scavenger cleans up the list.
-  int num_objects_to_move_[kClassSizesMax];
+  int num_objects_to_move_[kClassSizesMax];  // 这个叫class_to_objects_是不是更好?
 
   int NumMoveSize(size_t size);
 
@@ -247,7 +247,7 @@ class SizeMap {
   // Initialize the mapping arrays
   void Init();
 
-  inline int SizeClass(size_t size) {
+  inline int SizeClass(size_t size) {  // size(0-256KB) -> class(0-95)
     return class_array_[ClassIndex(size)];
   }
 

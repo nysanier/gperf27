@@ -1325,8 +1325,8 @@ static void* do_malloc_pages(ThreadCache* heap, size_t size) {
     SpinLockHolder h(Static::pageheap_lock());
     report_large = should_report_large(num_pages);
   } else {
-    SpinLockHolder h(Static::pageheap_lock());
-    Span* span = Static::pageheap()->New(num_pages);
+    SpinLockHolder h(Static::pageheap_lock());  // 在这里加锁,spinlock在保证不会阻塞的情况下比mutex高效
+    Span* span = Static::pageheap()->New(num_pages);  // 申请pages
     result = (PREDICT_FALSE(span == NULL) ? NULL : SpanToMallocResult(span));
     report_large = should_report_large(num_pages);
   }
@@ -1340,7 +1340,7 @@ static void* do_malloc_pages(ThreadCache* heap, size_t size) {
 static void *nop_oom_handler(size_t size) {
   return NULL;
 }
-
+// 实际申请内存的地方
 ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
   if (PREDICT_FALSE(ThreadCache::IsUseEmergencyMalloc())) {
     return tcmalloc::EmergencyMalloc(size);
@@ -1354,7 +1354,8 @@ ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
   ASSERT(cache != NULL);
 
   if (PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size, &cl))) {
-    return do_malloc_pages(cache, size);
+    printf("little memory(size=%d)\n", (int)size);
+    return do_malloc_pages(cache, size);  // 小内存,从ThreadCache中分配
   }
 
   size_t allocated_size = Static::sizemap()->class_to_size(cl);
@@ -1364,6 +1365,7 @@ ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
 
   // The common case, and also the simplest.  This just pops the
   // size-appropriate freelist, after replenishing it if it's empty.
+  printf("big memory(size=%d)\n", (int)size);
   return CheckedMallocResult(cache->Allocate(allocated_size, cl, nop_oom_handler));
 }
 
@@ -1422,7 +1424,7 @@ void do_free_with_callback(void* ptr,
                            bool use_hint, size_t size_hint) {
   ThreadCache* heap = ThreadCache::GetCacheIfPresent();
 
-  const PageID p = reinterpret_cast<uintptr_t>(ptr) >> kPageShift;
+  const PageID p = reinterpret_cast<uintptr_t>(ptr) >> kPageShift;  // 计算所在page, 就可以知道归还到那个slot了(总共96个)
   uint32 cl;
 
 #ifndef NO_TCMALLOC_SAMPLES
@@ -1431,7 +1433,7 @@ void do_free_with_callback(void* ptr,
   ASSERT(!use_hint || size_hint < kPageSize);
 #endif
 
-  if (!use_hint || PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size_hint, &cl))) {
+  if (!use_hint || PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size_hint, &cl))) {  // 计算所属的class
     // if we're in sized delete, but size is too large, no need to
     // probe size cache
     bool cache_hit = !use_hint && Static::pageheap()->TryGetSizeClass(p, &cl);

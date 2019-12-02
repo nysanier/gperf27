@@ -117,10 +117,10 @@ void ThreadCache::Cleanup() {
 void* ThreadCache::FetchFromCentralCache(uint32 cl, int32_t byte_size,
                                          void *(*oom_handler)(size_t size)) {
   FreeList* list = &list_[cl];
-  ASSERT(list->empty());
+  ASSERT(list->empty());  // 设计约束, 进这里肯定就是外面list没有内存了
   const int batch_size = Static::sizemap()->num_objects_to_move(cl);
 
-  const int num_to_move = min<int>(list->max_length(), batch_size);
+  const int num_to_move = min<int>(list->max_length(), batch_size);  // 结合动态和静态参数
   void *start, *end;
   int fetch_count = Static::central_cache()[cl].RemoveRange(
       &start, &end, num_to_move);
@@ -131,7 +131,7 @@ void* ThreadCache::FetchFromCentralCache(uint32 cl, int32_t byte_size,
   }
   ASSERT(start != NULL);
 
-  if (--fetch_count >= 0) {
+  if (--fetch_count >= 0) {  // 实际拿到的objects个数?
     size_ += byte_size * fetch_count;
     list->PushRange(fetch_count, SLL_Next(start), end);
   }

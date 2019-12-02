@@ -101,7 +101,7 @@ class ThreadCache {
   static void         InitModule();
   static void         InitTSD();
   static ThreadCache* GetThreadHeap();
-  static ThreadCache* GetCache();
+  static ThreadCache* GetCache();  // 获取ThreadCache
   static ThreadCache* GetCacheIfPresent();
   static ThreadCache* GetFastPathCache();
   static ThreadCache* GetCacheWhichMustBePresent();

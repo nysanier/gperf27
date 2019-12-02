@@ -85,10 +85,10 @@ Span* PageHeap::SearchFreeAndLargeLists(Length n) {
     // If we're lucky, ll is non-empty, meaning it has a suitable span.
     if (!DLL_IsEmpty(ll)) {
       ASSERT(ll->next->location == Span::ON_NORMAL_FREELIST);
-      return Carve(ll->next, n);
+      return Carve(ll->next, n);  // 优先尝试空闲Span
     }
     // Alternatively, maybe there's a usable returned span.
-    ll = &free_[s - 1].returned;
+    ll = &free_[s - 1].returned;  // 尝试已经归还物理内存的Span
     if (!DLL_IsEmpty(ll)) {
       // We did not call EnsureLimit before, to avoid releasing the span
       // that will be taken immediately back.
@@ -113,8 +113,8 @@ static const size_t kForcedCoalesceInterval = 128*1024*1024;
 Span* PageHeap::New(Length n) {
   ASSERT(Check());
   ASSERT(n > 0);
-
-  Span* result = SearchFreeAndLargeLists(n);
+  // 在外面锁定, CentralFreeList 本身就需要加锁
+  Span* result = SearchFreeAndLargeLists(n);  // 申请Span
   if (result != NULL)
     return result;
 
@@ -151,7 +151,7 @@ Span* PageHeap::New(Length n) {
   }
 
   // Grow the heap and try again.
-  if (!GrowHeap(n)) {
+  if (!GrowHeap(n)) {  // 申请虚拟地址一般不会失败, oom发生在缺页中断发生时却无法找到可用的物理页
     ASSERT(stats_.unmapped_bytes+ stats_.committed_bytes==stats_.system_bytes);
     ASSERT(Check());
     // underlying SysAllocator likely set ENOMEM but we can get here
@@ -162,7 +162,7 @@ Span* PageHeap::New(Length n) {
     errno = ENOMEM;
     return NULL;
   }
-  return SearchFreeAndLargeLists(n);
+  return SearchFreeAndLargeLists(n);  // GrowHeap之后再申请一次
 }
 
 Span* PageHeap::AllocLarge(Length n) {
@@ -184,7 +184,7 @@ Span* PageHeap::AllocLarge(Length n) {
 
   // Try to find better fit from RETURNED spans.
   place = large_returned_.upper_bound(SpanPtrWithLength(&bound));
-  if (place != large_returned_.end()) {
+  if (place != large_returned_.end()) {  // 在large中以better fit的标准去查找
     Span *c = place->span;
     ASSERT(c->location == Span::ON_RETURNED_FREELIST);
     if (best_normal == NULL
@@ -255,7 +255,7 @@ bool PageHeap::DecommitSpan(Span* span) {
 
   return rv;
 }
-
+// 1个大Span分成两份,一份用于申请,另外一份插队到对应的free_[n]列表中,可能还是一个large的Span
 Span* PageHeap::Carve(Span* span, Length n) {
   ASSERT(n > 0);
   ASSERT(span->location != Span::IN_USE);
