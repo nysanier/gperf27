@@ -90,3 +90,40 @@ extern PERFTOOLS_DLL_DECL SysAllocator* tcmalloc_sys_alloc;
 extern PERFTOOLS_DLL_DECL size_t TCMalloc_SystemTaken;
 
 #endif /* TCMALLOC_SYSTEM_ALLOC_H_ */
+
+
+// test System Alloc by sbrk/mmap
+// ----------------------------------------------------------------
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+
+#ifdef __linux__
+inline void* Sbrk(intptr_t increment) {
+    printf("sbrk(increment=%lld)\n", (long long)increment);
+    return ::sbrk(increment);
+}
+
+inline int Brk(void* addr) {
+    printf("brk(addr=%p)\n", addr);
+    return ::brk(addr);
+}
+
+#else  // APPLE, not yet tested
+inline void* Sbrk(int incr) {
+    printf("sbrk(incr=%ld)\n", incr);
+    return ::sbrk(incr);
+}
+
+inline void* Brk(const void* addr) {
+    printf("brk(addr=%p)\n", addr);
+    return ::brk(addr);
+}
+#endif
+
+inline void* Mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+    printf("mmap(addr=%p,len=%lld,prot=%d,flags=%d,fd=%d,offset=%lld)\n",
+            addr, (long long)len, prot, flags, fd, (long long)offset);
+    return ::mmap(addr, len, prot, flags, fd, offset);
+}
+// ----------------------------------------------------------------

@@ -365,6 +365,7 @@ inline int ThreadCache::HeapsInUse() {
 
 inline ATTRIBUTE_ALWAYS_INLINE void* ThreadCache::Allocate(
   size_t size, uint32 cl, void *(*oom_handler)(size_t size)) {
+  printf("3 ThreadCache::Allocate(size=%d,cl=%d,oom_handler=%p)\n", (int)size, (int)cl, oom_handler);
   FreeList* list = &list_[cl];
 
 #ifdef NO_TCMALLOC_SAMPLES

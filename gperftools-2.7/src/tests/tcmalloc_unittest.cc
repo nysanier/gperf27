@@ -1622,8 +1622,9 @@ static int RunAllTests(int argc, char** argv) {
 }
 
 using testing::RunAllTests;
-
+int Main();
 int main(int argc, char** argv) {
+  return Main();  // test System Alloc by sbrk/mmap
 #ifdef DEBUGALLOCATION    // debug allocation takes forever for huge allocs
   FLAGS_max_free_queue_size = 0;  // return freed blocks to tcmalloc immediately
 #endif
@@ -1643,3 +1644,50 @@ int main(int argc, char** argv) {
 
   fprintf(LOGSTREAM, "PASS\n");
 }
+
+// test System Alloc by sbrk/mmap
+// ----------------------------------------------------------------
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void CheckMalloc(size_t size) {
+    void* p = ::malloc(size);
+    // void* p = tc_malloc(size);
+    printf("---------- p=%p\n\n", p);
+    // if (!p) {
+    //     printf("-----------malloc(%lld) failed!!\n", (long long)size);
+    // }
+}
+
+int Main() {
+    int pid = ::getpid();
+    printf("pid = %d\n", pid);
+
+    // lib need 8MB + 1MB
+
+    // only support 10MB max
+    CheckMalloc(8);
+    CheckMalloc(8+1);
+    CheckMalloc(1024);
+    CheckMalloc(1024+1);
+    CheckMalloc(256*1024);
+    CheckMalloc(256*1024+1);
+    // fail 3 times
+    CheckMalloc(1024*1024);
+    CheckMalloc(1024*1024+1);
+    CheckMalloc(2*1024*1024);
+    // back to ok
+    CheckMalloc(1024);
+    CheckMalloc(16);
+
+    std::string str_line;
+    for (;;) {
+        std::getline(std::cin, str_line);
+    }
+
+    return 0;
+}
+// ----------------------------------------------------------------

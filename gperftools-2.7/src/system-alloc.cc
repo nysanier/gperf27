@@ -55,6 +55,7 @@
 #include "base/spinlock.h"              // for SpinLockHolder, SpinLock, etc
 #include "common.h"
 #include "internal_logging.h"
+#include "system-alloc.h"
 
 // On systems (like freebsd) that don't define MAP_ANONYMOUS, use the old
 // form of the name instead.
@@ -116,7 +117,7 @@ static size_t pagesize = 0;
 #endif
 
 // The current system allocator
-SysAllocator* tcmalloc_sys_alloc = NULL;
+SysAllocator* tcmalloc_sys_alloc = NULL;  // default sys allocator
 
 // Number of bytes taken from system.
 size_t TCMalloc_SystemTaken = 0;
@@ -203,9 +204,9 @@ static union {
 static const char sbrk_name[] = "SbrkSysAllocator";
 static const char mmap_name[] = "MmapSysAllocator";
 
-
 void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
                               size_t alignment) {
+  printf("SbrkSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
 #if !defined(HAVE_SBRK) || defined(__UCLIBC__)
   return NULL;
 #else
@@ -240,11 +241,20 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
   //    http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/lib/libc/port/sys/sbrk.c?a=true
   //    http://sourceware.org/cgi-bin/cvsweb.cgi/~checkout~/libc/misc/sbrk.c?rev=1.1.2.1&content-type=text/plain&cvsroot=glibc
   // Without this check, sbrk may succeed when it ought to fail.)
-  if (reinterpret_cast<intptr_t>(sbrk(0)) + size < size) {
+  if (reinterpret_cast<intptr_t>(Sbrk(0)) + size < size) {
     return NULL;
   }
 
-  void* result = sbrk(size);
+  static size_t s_total = 0;  // test what if sbrk/mmap fails
+  const size_t total = s_total + size;
+  const int MB = 1024 * 1024;
+  if (total > 8 * MB + 2 * MB) {  // limit memory usage!
+    printf("total(%lld), size=%d sbrk limited\n", (long long)total, (int)size);
+    return NULL;
+  }
+  s_total = total;
+
+  void* result = Sbrk(size);
   if (result == reinterpret_cast<void*>(-1)) {
     return NULL;
   }
@@ -255,7 +265,7 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
 
   // Try to get more memory for alignment
   size_t extra = alignment - (ptr & (alignment-1));
-  void* r2 = sbrk(extra);
+  void* r2 = Sbrk(extra);
   if (reinterpret_cast<uintptr_t>(r2) == (ptr + size)) {
     // Contiguous with previous result
     return reinterpret_cast<void*>(ptr + extra);
@@ -263,7 +273,7 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
 
   // Give up and ask for "size + alignment - 1" bytes so
   // that we can find an aligned region within it.
-  result = sbrk(size + alignment - 1);
+  result = Sbrk(size + alignment - 1);
   if (result == reinterpret_cast<void*>(-1)) {
     return NULL;
   }
@@ -277,6 +287,8 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
 
 void* MmapSysAllocator::Alloc(size_t size, size_t *actual_size,
                               size_t alignment) {
+  printf("MmapSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
+  return NULL;
 #ifndef HAVE_MMAP
   return NULL;
 #else
@@ -315,7 +327,7 @@ void* MmapSysAllocator::Alloc(size_t size, size_t *actual_size,
   //            size + alignment < (1<<NBITS).
   // and        extra <= alignment
   // therefore  size + extra < (1<<NBITS)
-  void* result = mmap(NULL, size + extra,
+  void* result = Mmap(NULL, size + extra,
                       PROT_READ|PROT_WRITE,
                       MAP_PRIVATE|MAP_ANONYMOUS,
                       -1, 0);
@@ -345,6 +357,7 @@ void* MmapSysAllocator::Alloc(size_t size, size_t *actual_size,
 
 void* DevMemSysAllocator::Alloc(size_t size, size_t *actual_size,
                                 size_t alignment) {
+  printf("DevMemSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
 #ifndef HAVE_MMAP
   return NULL;
 #else
@@ -434,13 +447,14 @@ void* DevMemSysAllocator::Alloc(size_t size, size_t *actual_size,
 
 void* DefaultSysAllocator::Alloc(size_t size, size_t *actual_size,
                                  size_t alignment) {
-  for (int i = 0; i < kMaxAllocators; i++) {
+  printf("DefaultSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
+  for (int i = 0; i < kMaxAllocators; i++) {  // sbrk/mmap两者逐一尝试
     if (!failed_[i] && allocs_[i] != NULL) {
       void* result = allocs_[i]->Alloc(size, actual_size, alignment);
       if (result != NULL) {
         return result;
       }
-      failed_[i] = true;
+      failed_[i] = true;  // 只要失败过一次, 后面就不再使用
     }
   }
   // After both failed, reset "failed_" to false so that a single failed
@@ -473,7 +487,7 @@ void InitSystemAllocators(void) {
   if (kDebugMode && sizeof(void*) > 4) {
     sdef->SetChildAllocator(mmap, 0, mmap_name);
     sdef->SetChildAllocator(sbrk, 1, sbrk_name);
-  } else {
+  } else {  // release下优先用的sbrk
     sdef->SetChildAllocator(sbrk, 0, sbrk_name);
     sdef->SetChildAllocator(mmap, 1, mmap_name);
   }
@@ -483,6 +497,7 @@ void InitSystemAllocators(void) {
 
 void* TCMalloc_SystemAlloc(size_t size, size_t *actual_size,
                            size_t alignment) {
+  printf("TCMalloc_SystemAlloc(size=%lld)\n", (long long)size);
   // Discard requests that overflow
   if (size + alignment < size) return NULL;
 

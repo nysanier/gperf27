@@ -1831,6 +1831,7 @@ void* memalign_pages(size_t align, size_t size,
 template <void* OOMHandler(size_t)>
 ATTRIBUTE_ALWAYS_INLINE inline
 static void * malloc_fast_path(size_t size) {
+  printf("2 malloc_fast_path(size=%d)\n", (int)size);
   if (PREDICT_FALSE(!base::internal::new_hooks_.empty())) {
     return tcmalloc::dispatch_allocate_full<OOMHandler>(size);
   }
@@ -1877,6 +1878,8 @@ static void* memalign_fast_path(size_t align, size_t size) {
 
 extern "C" PERFTOOLS_DLL_DECL CACHELINE_ALIGNED_FN
 void* tc_malloc(size_t size) PERFTOOLS_NOTHROW {
+  printf("\n");
+  printf("1 tc_malloc(%d)\n", (int)size);
   return malloc_fast_path<tcmalloc::malloc_oom>(size);
 }
 
