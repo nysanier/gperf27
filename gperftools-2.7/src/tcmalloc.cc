@@ -1308,6 +1308,7 @@ inline bool should_report_large(Length num_pages) {
 
 // Helper for do_malloc().
 static void* do_malloc_pages(ThreadCache* heap, size_t size) {
+  printf("**do_malloc_pages(size=%d)\n", (int)size);
   void* result;
   bool report_large;
 
@@ -1342,6 +1343,7 @@ static void *nop_oom_handler(size_t size) {
 }
 // 实际申请内存的地方
 ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
+  printf("--do_malloc(size=%d)\n", (int)size);
   if (PREDICT_FALSE(ThreadCache::IsUseEmergencyMalloc())) {
     return tcmalloc::EmergencyMalloc(size);
   }
@@ -1354,18 +1356,19 @@ ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
   ASSERT(cache != NULL);
 
   if (PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size, &cl))) {
-    printf("little memory(size=%d)\n", (int)size);
+    printf("big memory(size=%d)\n", (int)size);
     return do_malloc_pages(cache, size);  // 小内存,从ThreadCache中分配
   }
 
   size_t allocated_size = Static::sizemap()->class_to_size(cl);
   if (PREDICT_FALSE(cache->SampleAllocation(allocated_size))) {
+    printf("sample memory(size=%d)\n", (int)size);
     return DoSampledAllocation(size);
   }
 
   // The common case, and also the simplest.  This just pops the
   // size-appropriate freelist, after replenishing it if it's empty.
-  printf("big memory(size=%d)\n", (int)size);
+  printf("little memory(size=%d)\n", (int)size);
   return CheckedMallocResult(cache->Allocate(allocated_size, cl, nop_oom_handler));
 }
 
@@ -1757,6 +1760,7 @@ void* malloc_oom(size_t size) {
 template <void* OOMHandler(size_t)>
 ATTRIBUTE_ALWAYS_INLINE inline
 static void* do_allocate_full(size_t size) {
+  printf("do_allocate_full(size=%d)\n", (int)size);
   void* p = do_malloc(size);
   if (PREDICT_FALSE(p == NULL)) {
     p = OOMHandler(size);

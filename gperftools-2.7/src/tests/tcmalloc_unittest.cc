@@ -1655,6 +1655,7 @@ int main(int argc, char** argv) {
 
 
 void CheckMalloc(size_t size) {
+    printf("\n========== malloc(size=%d)\n", (int)size);
     void* p = ::malloc(size);
     // void* p = tc_malloc(size);
     printf("---------- p=%p\n\n", p);
@@ -1670,19 +1671,25 @@ int Main() {
     // lib need 8MB + 1MB
 
     // only support 10MB max
+    CheckMalloc(8-1);
     CheckMalloc(8);
     CheckMalloc(8+1);
+    CheckMalloc(1024-1);
     CheckMalloc(1024);
     CheckMalloc(1024+1);
+    CheckMalloc(256*1024-1);
     CheckMalloc(256*1024);
     CheckMalloc(256*1024+1);
-    // fail 3 times
+
+    // fail 4 times
+    CheckMalloc(1024*1024-1);
     CheckMalloc(1024*1024);
     CheckMalloc(1024*1024+1);
     CheckMalloc(2*1024*1024);
+  
     // back to ok
     CheckMalloc(1024);
-    CheckMalloc(16);
+    CheckMalloc(8);
 
     std::string str_line;
     for (;;) {
