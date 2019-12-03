@@ -206,7 +206,7 @@ static const char mmap_name[] = "MmapSysAllocator";
 
 void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
                               size_t alignment) {
-  printf("SbrkSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
+  printf("10 SbrkSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
 #if !defined(HAVE_SBRK) || defined(__UCLIBC__)
   return NULL;
 #else
@@ -287,8 +287,8 @@ void* SbrkSysAllocator::Alloc(size_t size, size_t *actual_size,
 
 void* MmapSysAllocator::Alloc(size_t size, size_t *actual_size,
                               size_t alignment) {
-  printf("MmapSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
-  return NULL;
+  printf("10 MmapSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
+  return NULL;  // disable mmap
 #ifndef HAVE_MMAP
   return NULL;
 #else
@@ -447,7 +447,7 @@ void* DevMemSysAllocator::Alloc(size_t size, size_t *actual_size,
 
 void* DefaultSysAllocator::Alloc(size_t size, size_t *actual_size,
                                  size_t alignment) {
-  printf("DefaultSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
+  printf("9 DefaultSysAllocator::Alloc(size=%d,alignment=%d)\n", (int)size, (int)alignment);
   for (int i = 0; i < kMaxAllocators; i++) {  // sbrk/mmap两者逐一尝试
     if (!failed_[i] && allocs_[i] != NULL) {
       void* result = allocs_[i]->Alloc(size, actual_size, alignment);
@@ -497,7 +497,7 @@ void InitSystemAllocators(void) {
 
 void* TCMalloc_SystemAlloc(size_t size, size_t *actual_size,
                            size_t alignment) {
-  printf("TCMalloc_SystemAlloc(size=%lld)\n", (long long)size);
+  printf("8 TCMalloc_SystemAlloc(size=%lld)\n", (long long)size);
   // Discard requests that overflow
   if (size + alignment < size) return NULL;
 

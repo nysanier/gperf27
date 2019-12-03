@@ -32,6 +32,10 @@ add_definitions(
     # -DENABLE_EMERGENCY_MALLOC
 )
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DNDEBUG)  # set for debug mode when need -DNDEBUG but not -O3
+endif()
+
 # if(NOT MSVC)
 # add_compile_options(
     

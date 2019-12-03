@@ -1671,25 +1671,25 @@ int Main() {
     // lib need 8MB + 1MB
 
     // only support 10MB max
-    CheckMalloc(8-1);
-    CheckMalloc(8);
-    CheckMalloc(8+1);
-    CheckMalloc(1024-1);
-    CheckMalloc(1024);
-    CheckMalloc(1024+1);
-    CheckMalloc(256*1024-1);
-    CheckMalloc(256*1024);
-    CheckMalloc(256*1024+1);
+    // CheckMalloc(8-1);
+    // CheckMalloc(8);
+    // CheckMalloc(8+1);
+    // CheckMalloc(1024-1);  // size==1152,cl=32
+    // CheckMalloc(1024);
+    // CheckMalloc(1024+1);
+    // CheckMalloc(256*1024-1);
+    // CheckMalloc(256*1024);
+    // CheckMalloc(256*1024+1);
 
-    // fail 4 times
-    CheckMalloc(1024*1024-1);
-    CheckMalloc(1024*1024);
-    CheckMalloc(1024*1024+1);
+    // // fail 4 times
+    // CheckMalloc(1024*1024-1);
+    // CheckMalloc(1024*1024);
+    // CheckMalloc(1024*1024+1);
     CheckMalloc(2*1024*1024);
   
-    // back to ok
-    CheckMalloc(1024);
-    CheckMalloc(8);
+    // // back to ok
+    // CheckMalloc(1024);
+    // CheckMalloc(8);
 
     std::string str_line;
     for (;;) {
@@ -1698,4 +1698,48 @@ int Main() {
 
     return 0;
 }
+/*
+(gdb) b tcmalloc::ThreadCache::Allocate if size==1152
+
+// debug
+Breakpoint 1, tcmalloc::ThreadCache::Allocate (this=0x84cc40, size=1152, cl=32, 
+    oom_handler=0x40f0de <(anonymous namespace)::nop_oom_handler(size_t)>)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/thread_cache.h:368
+368       printf("3 ThreadCache::Allocate(size=%d,cl=%d,oom_handler=%p)\n", (int)size, (int)cl, oom_handler);
+Missing separate debuginfos, use: debuginfo-install libgcc-4.8.5-28.el7.x86_64 libstdc++-4.8.5-28.el7.x86_64
+(gdb) bt
+#0  tcmalloc::ThreadCache::Allocate (this=0x84cc40, size=1152, cl=32, 
+    oom_handler=0x40f0de <(anonymous namespace)::nop_oom_handler(size_t)>)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/thread_cache.h:368
+#1  0x000000000040f44b in (anonymous namespace)::do_malloc (size=1071) at /home/blueshi/git/gperf27/gperftools-2.7/src/tcmalloc.cc:1372
+#2  0x0000000000414821 in MallocBlock::Allocate (size=1023, type=-271733872)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/debugallocation.cc:534
+#3  0x000000000041105d in DebugAllocate (size=1023, type=-271733872)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/debugallocation.cc:1032
+#4  0x0000000000415802 in do_debug_malloc_or_debug_cpp_alloc (size=1023)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/debugallocation.cc:1205
+#5  0x000000000042d401 in tc_malloc (size=1023) at /home/blueshi/git/gperf27/gperftools-2.7/src/debugallocation.cc:1235
+#6  0x0000000000406962 in CheckMalloc (size=1023) at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1659
+#7  0x00000000004069cb in Main () at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1677
+#8  0x0000000000406933 in main (argc=1, argv=0x7fffffffe508)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1627
+(gdb) 
+
+// debug with -DNDEBUG
+Breakpoint 1, tcmalloc::ThreadCache::Allocate (this=0x83dc40, size=1152, cl=32, oom_handler=0x4230f8 <tcmalloc::malloc_oom(unsigned long)>)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/thread_cache.h:368
+368       printf("3 ThreadCache::Allocate(size=%d,cl=%d,oom_handler=%p)\n", (int)size, (int)cl, oom_handler);
+Missing separate debuginfos, use: debuginfo-install libgcc-4.8.5-28.el7.x86_64 libstdc++-4.8.5-28.el7.x86_64
+(gdb) bt
+#0  tcmalloc::ThreadCache::Allocate (this=0x83dc40, size=1152, cl=32, oom_handler=0x4230f8 <tcmalloc::malloc_oom(unsigned long)>)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/thread_cache.h:368
+#1  0x000000000041a3d7 in malloc_fast_path<tcmalloc::malloc_oom> (size=1025)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/tcmalloc.cc:1859
+#2  0x0000000000423237 in tc_malloc (size=1025) at /home/blueshi/git/gperf27/gperftools-2.7/src/tcmalloc.cc:1886
+#3  0x00000000004064ab in CheckMalloc (size=1025) at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1659
+#4  0x00000000004064f6 in Main () at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1679
+#5  0x000000000040647c in main (argc=1, argv=0x7fffffffe508)
+    at /home/blueshi/git/gperf27/gperftools-2.7/src/tests/tcmalloc_unittest.cc:1627
+(gdb)
+*/
 // ----------------------------------------------------------------

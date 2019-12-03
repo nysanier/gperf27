@@ -1308,7 +1308,7 @@ inline bool should_report_large(Length num_pages) {
 
 // Helper for do_malloc().
 static void* do_malloc_pages(ThreadCache* heap, size_t size) {
-  printf("**do_malloc_pages(size=%d)\n", (int)size);
+  printf("6 do_malloc_pages(size=%d)\n", (int)size);
   void* result;
   bool report_large;
 
@@ -1326,6 +1326,7 @@ static void* do_malloc_pages(ThreadCache* heap, size_t size) {
     SpinLockHolder h(Static::pageheap_lock());
     report_large = should_report_large(num_pages);
   } else {
+    printf("7 New pages with spin lock\n");
     SpinLockHolder h(Static::pageheap_lock());  // 在这里加锁,spinlock在保证不会阻塞的情况下比mutex高效
     Span* span = Static::pageheap()->New(num_pages);  // 申请pages
     result = (PREDICT_FALSE(span == NULL) ? NULL : SpanToMallocResult(span));
@@ -1342,8 +1343,8 @@ static void *nop_oom_handler(size_t size) {
   return NULL;
 }
 // 实际申请内存的地方
-ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc(size_t size) {
-  printf("--do_malloc(size=%d)\n", (int)size);
+void* do_malloc(size_t size) {
+  printf("5 do_malloc(size=%d)\n", (int)size);
   if (PREDICT_FALSE(ThreadCache::IsUseEmergencyMalloc())) {
     return tcmalloc::EmergencyMalloc(size);
   }
@@ -1376,7 +1377,7 @@ static void *retry_malloc(void* size) {
   return do_malloc(reinterpret_cast<size_t>(size));
 }
 
-ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc_or_cpp_alloc(size_t size) {
+void* do_malloc_or_cpp_alloc(size_t size) {
   void *rv = do_malloc(size);
   if (PREDICT_TRUE(rv != NULL)) {
     return rv;
@@ -1385,7 +1386,7 @@ ATTRIBUTE_ALWAYS_INLINE inline void* do_malloc_or_cpp_alloc(size_t size) {
                     false, true);
 }
 
-ATTRIBUTE_ALWAYS_INLINE inline void* do_calloc(size_t n, size_t elem_size) {
+void* do_calloc(size_t n, size_t elem_size) {
   // Overflow check
   const size_t size = n * elem_size;
   if (elem_size != 0 && size / elem_size != n) return NULL;
@@ -1421,7 +1422,6 @@ static ATTRIBUTE_NOINLINE void do_free_pages(Span* span, void* ptr) {
 //
 // We can usually detect the case where ptr is not pointing to a page that
 // tcmalloc is using, and in those cases we invoke invalid_free_fn.
-ATTRIBUTE_ALWAYS_INLINE inline
 void do_free_with_callback(void* ptr,
                            void (*invalid_free_fn)(void*),
                            bool use_hint, size_t size_hint) {
@@ -1490,7 +1490,7 @@ void do_free_with_callback(void* ptr,
 }
 
 // The default "do_free" that uses the default callback.
-ATTRIBUTE_ALWAYS_INLINE inline void do_free(void* ptr) {
+void do_free(void* ptr) {
   return do_free_with_callback(ptr, &InvalidFree, false, 0);
 }
 
@@ -1525,7 +1525,7 @@ inline size_t GetSizeWithCallback(const void* ptr,
 
 // This lets you call back to a given function pointer if ptr is invalid.
 // It is used primarily by windows code which wants a specialized callback.
-ATTRIBUTE_ALWAYS_INLINE inline void* do_realloc_with_callback(
+void* do_realloc_with_callback(
     void* old_ptr, size_t new_size,
     void (*invalid_free_fn)(void*),
     size_t (*invalid_get_size_fn)(const void*)) {
@@ -1572,12 +1572,12 @@ ATTRIBUTE_ALWAYS_INLINE inline void* do_realloc_with_callback(
   }
 }
 
-ATTRIBUTE_ALWAYS_INLINE inline void* do_realloc(void* old_ptr, size_t new_size) {
+void* do_realloc(void* old_ptr, size_t new_size) {
   return do_realloc_with_callback(old_ptr, new_size,
                                   &InvalidFree, &InvalidGetSizeForRealloc);
 }
 
-static ATTRIBUTE_ALWAYS_INLINE inline
+static
 void* do_memalign_pages(size_t align, size_t size) {
   ASSERT((align & (align - 1)) == 0);
   ASSERT(align > kPageSize);
@@ -1758,9 +1758,8 @@ void* malloc_oom(size_t size) {
 // subsequent stack frames in google_malloc section and correctly
 // 'cut' stack trace just before tc_new.
 template <void* OOMHandler(size_t)>
-ATTRIBUTE_ALWAYS_INLINE inline
 static void* do_allocate_full(size_t size) {
-  printf("do_allocate_full(size=%d)\n", (int)size);
+  printf("4 do_allocate_full(size=%d)\n", (int)size);  // not executed?
   void* p = do_malloc(size);
   if (PREDICT_FALSE(p == NULL)) {
     p = OOMHandler(size);
@@ -1782,7 +1781,8 @@ AF(malloc_oom)
 #undef AF
 
 template <void* OOMHandler(size_t)>
-static ATTRIBUTE_ALWAYS_INLINE inline void* dispatch_allocate_full(size_t size) {
+static void* dispatch_allocate_full(size_t size) {
+  printf("3 dispatch_allocate_full\n");
   if (OOMHandler == cpp_throw_oom) {
     return allocate_full_cpp_throw_oom(size);
   }
@@ -1835,30 +1835,33 @@ void* memalign_pages(size_t align, size_t size,
 // comprehension. Which itself led to elimination of various checks
 // that were not necessary for fast-path.
 template <void* OOMHandler(size_t)>
-ATTRIBUTE_ALWAYS_INLINE inline
 static void * malloc_fast_path(size_t size) {
   printf("2 malloc_fast_path(size=%d)\n", (int)size);
   if (PREDICT_FALSE(!base::internal::new_hooks_.empty())) {
+    // printf("? %s:%d\n", __FILE__, __LINE__);
     return tcmalloc::dispatch_allocate_full<OOMHandler>(size);
   }
 
   ThreadCache *cache = ThreadCache::GetFastPathCache();
 
   if (PREDICT_FALSE(cache == NULL)) {
+    // printf("? %s:%d\n", __FILE__, __LINE__);
     return tcmalloc::dispatch_allocate_full<OOMHandler>(size);
   }
 
   uint32 cl;
-  if (PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size, &cl))) {
+  if (PREDICT_FALSE(!Static::sizemap()->GetSizeClass(size, &cl))) {  // cl=0 means
+    printf("2.5 %s:%d\n", __FILE__, __LINE__);
     return tcmalloc::dispatch_allocate_full<OOMHandler>(size);
   }
 
   size_t allocated_size = Static::sizemap()->ByteSizeForClass(cl);
 
   if (PREDICT_FALSE(!cache->TryRecordAllocationFast(allocated_size))) {
+    // printf("? %s:%d\n", __FILE__, __LINE__);
     return tcmalloc::dispatch_allocate_full<OOMHandler>(size);
   }
-
+  // little memory
   return CheckedMallocResult(cache->Allocate(allocated_size, cl, OOMHandler));
 }
 
@@ -1889,7 +1892,7 @@ void* tc_malloc(size_t size) PERFTOOLS_NOTHROW {
   return malloc_fast_path<tcmalloc::malloc_oom>(size);
 }
 
-static ATTRIBUTE_ALWAYS_INLINE inline
+static
 void free_fast_path(void *ptr) {
   if (PREDICT_FALSE(!base::internal::delete_hooks_.empty())) {
     tcmalloc::invoke_hooks_and_free(ptr);

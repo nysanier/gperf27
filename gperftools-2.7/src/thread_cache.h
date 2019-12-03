@@ -363,7 +363,7 @@ inline int ThreadCache::HeapsInUse() {
   return threadcache_allocator.inuse();
 }
 
-inline ATTRIBUTE_ALWAYS_INLINE void* ThreadCache::Allocate(
+inline void* ThreadCache::Allocate(
   size_t size, uint32 cl, void *(*oom_handler)(size_t size)) {
   printf("3 ThreadCache::Allocate(size=%d,cl=%d,oom_handler=%p)\n", (int)size, (int)cl, oom_handler);
   FreeList* list = &list_[cl];
@@ -384,7 +384,7 @@ inline ATTRIBUTE_ALWAYS_INLINE void* ThreadCache::Allocate(
   return rv;
 }
 
-inline ATTRIBUTE_ALWAYS_INLINE void ThreadCache::Deallocate(void* ptr, uint32 cl) {
+inline void ThreadCache::Deallocate(void* ptr, uint32 cl) {
   ASSERT(list_[cl].max_length() > 0);
   FreeList* list = &list_[cl];
 

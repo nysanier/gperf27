@@ -411,6 +411,7 @@ union MemoryAligner {
 
 #if defined(__GNUC__)
 #define ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
+// #define ATTRIBUTE_ALWAYS_INLINE
 #elif defined(_MSC_VER)
 #define ATTRIBUTE_ALWAYS_INLINE __forceinline
 #else

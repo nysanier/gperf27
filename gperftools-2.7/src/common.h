@@ -148,7 +148,7 @@ namespace tcmalloc {
 
 // Convert byte size into pages.  This won't overflow, but may return
 // an unreasonably large value if bytes is huge enough.
-inline Length pages(size_t bytes) {
+inline Length pages(size_t bytes) { // 需要的页数
   return (bytes >> kPageShift) +
       ((bytes & (kPageSize - 1)) > 0 ? 1 : 0);
 }

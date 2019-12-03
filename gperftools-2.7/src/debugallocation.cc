@@ -30,7 +30,7 @@
 
 // ---
 // Author: Urs Holzle <opensource@google.com>
-
+#if 0  // 这里重新实现的tc_malloc/tc_free会覆盖tc_malloc.cc中的实现版本
 #include "config.h"
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
@@ -1229,6 +1229,7 @@ static void force_frame() {
 }
 
 extern "C" PERFTOOLS_DLL_DECL void* tc_malloc(size_t size) PERFTOOLS_NOTHROW {
+  printf("1 debug tc_malloc(%d)\n", (int)size);
   if (ThreadCache::IsUseEmergencyMalloc()) {
     return tcmalloc::EmergencyMalloc(size);
   }
@@ -1581,3 +1582,4 @@ extern "C" PERFTOOLS_DLL_DECL void* tc_malloc_skip_new_handler(size_t size) PERF
   MallocHook::InvokeNewHook(result, size);
   return result;
 }
+#endif
